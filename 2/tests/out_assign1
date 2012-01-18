@@ -1,0 +1,30 @@
+myshell> /home/vicky/Academics/OS/Assignments/2/tests
+myshell> myshell> dir
+double
+in_assign1
+in_cp
+in_search_both_halves
+in_search_first_half
+in_search_no_half
+in_search_second_half
+out_assign1
+out_cp
+out_search_both_halves
+out_search_first_half
+out_search_no_half
+out_search_second_half
+myshell> myshell> /home/vicky/Academics/OS/Assignments/2/tests/dir
+myshell> myshell> myshell> myshell> double
+in_assign1
+in_cp
+in_search_both_halves
+in_search_first_half
+in_search_no_half
+in_search_second_half
+out_assign1
+out_cp
+out_search_both_halves
+out_search_first_half
+out_search_no_half
+out_search_second_half
+myshell> 

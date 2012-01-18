@@ -1,0 +1,11 @@
+bash -l -c "echo 'qwerty\nasdfgh' > file"
+mkdir dir
+cp file file2
+diff file file2
+cp file dir
+diff file dir/file
+rm dir/file
+cp file dir/
+diff file dir/file
+rm -r file file2 dir
+exit
