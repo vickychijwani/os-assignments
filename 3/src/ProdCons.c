@@ -26,14 +26,15 @@
 
 /* Macros for convenient manipulation of shared memory (and error
    handling too) */
-#define SHMGET(id, type, n) do { id ## _shm_id = shmget(IPC_PRIVATE, ((n)*sizeof(type)), 0777 | IPC_CREAT); if (id ## _shm_id == -1) perror(prog); id = shmat(id ## _shm_id, 0, 0); if ((int) id == -1) perror(prog); } while (0)
-#define SHMREM(id) do { int ret = shmdt(id); if (ret == -1) perror(prog); ret = shmctl(id ## _shm_id, IPC_RMID, 0); if (ret == -1) perror(prog); } while (0)
+#define SHMGET(id, type, n) do { int shm_id = shmget(IPC_PRIVATE, ((n)*sizeof(type)), 0777 | IPC_CREAT); err(shm_id); shm_ids[++shm_count] = shm_id; id = shmat(shm_id, 0, 0); err((int) id); } while (0)
+#define SHMDT(id) err(shmdt(id))
+#define SHMREM() do { int i; for (i = 0; i <= shm_count; i++) err(shmctl(shm_ids[i], IPC_RMID, 0)); } while (0)
 
 /* Macros for convenient manipulation of sempahores (and error
    handling too) */
-#define SEMGET(id, val) do { int ret; id = semget(IPC_PRIVATE, 1, 0777 | IPC_CREAT); if (id == -1) perror(prog); ret = semctl(id, 0, SETVAL, val); if (ret == -1) perror(prog); } while (0)
+#define SEMGET(id, val) do { id = semget(IPC_PRIVATE, 1, 0777 | IPC_CREAT); err(id); err(semctl(id, 0, SETVAL, val)); } while (0)
 #define SEMGETVAL(id) semctl(id, 0, GETVAL, 0)
-#define SEMREM(id) do { int ret = semctl(id, 0, IPC_RMID, 0); if (ret == -1) perror(prog); } while (0)
+#define SEMREM(id) err(semctl(id, 0, IPC_RMID, 0))
 
 /* external variables */
 extern int errno;
@@ -45,17 +46,19 @@ int empty, full;              /* semaphores to prevent underflow / overflow of t
 int mutex;                    /* semaphore to enforce mutual exclusion */
 int prod_count;               /* semaphore to keep track of the number of active producers */
 struct sembuf pop, vop;       /* sembufs to realize wait() and signal() calls */
+int shm_ids[100], shm_count = -1;
 
 /* function prototypes */
 void producer(void);
 void consumer(void);
 int buf_dequeue(void);
 void buf_enqueue(int);
+void shm_cleanup(void);
+void err(int);
 
 
 int main(void) {
     int i, status;
-    int buf_shm_id, head_shm_id, tail_shm_id, sum_shm_id;
 
     SEMGET(empty, BUFSIZE);
     SEMGET(full, 0);
@@ -84,10 +87,7 @@ int main(void) {
 
     printf("SUM = %d\n", *sum);
 
-    SHMREM(buf);
-    SHMREM(head);
-    SHMREM(tail);
-    SHMREM(sum);
+    shm_cleanup();
 
     SEMREM(full);
     SEMREM(empty);
@@ -160,4 +160,19 @@ void buf_enqueue(int num) {
 
     V(mutex);
     V(full);
+}
+
+void shm_cleanup(void) {
+    SHMDT(buf);
+    SHMDT(head);
+    SHMDT(tail);
+    SHMDT(sum);
+    SHMREM();
+}
+
+void err(int ret) {
+    if (ret == -1) {
+        perror(prog);
+        exit(-1);
+    }
 }
