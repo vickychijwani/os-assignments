@@ -21,8 +21,8 @@
 #define BUF_END -1
 
 /* wait() and signal() */
-#define P(s) semop(s, &pop, 1)
-#define V(s) semop(s, &vop, 1)
+#define WAIT(s) semop(s, &pop, 1)
+#define SIGNAL(s) semop(s, &vop, 1)
 
 /* Macros for convenient manipulation of shared memory (and error
    handling too) */
@@ -101,12 +101,12 @@ void producer(void) {
     if (fork() == 0) {
         int i;
 
-        V(prod_count);
+        SIGNAL(prod_count);
 
         for (i = 1; i <= NUM_MAX; i++)
             buf_enqueue(i);
 
-        P(prod_count);
+        WAIT(prod_count);
 
         if (!SEMGETVAL(prod_count))
             buf_enqueue(BUF_END);
@@ -122,9 +122,9 @@ void consumer(void) {
         while (1) {
             num = buf_dequeue();
 
-            P(mutex);
+            WAIT(mutex);
             *sum += num;
-            V(mutex);
+            SIGNAL(mutex);
         }
 
         exit(0);
@@ -134,32 +134,32 @@ void consumer(void) {
 int buf_dequeue(void) {
     int temp;
 
-    P(full);
-    P(mutex);
+    WAIT(full);
+    WAIT(mutex);
 
     temp = buf[*head];
     if (temp == BUF_END) {
-        V(mutex);
-        V(full);
+        SIGNAL(mutex);
+        SIGNAL(full);
         exit(0);
     }
     *head = ((*head) + 1) % BUFSIZE;
 
-    V(mutex);
-    V(empty);
+    SIGNAL(mutex);
+    SIGNAL(empty);
 
     return temp;
 }
 
 void buf_enqueue(int num) {
-    P(empty);
-    P(mutex);
+    WAIT(empty);
+    WAIT(mutex);
 
     buf[*tail] = num;
     *tail = ((*tail) + 1) % BUFSIZE;
 
-    V(mutex);
-    V(full);
+    SIGNAL(mutex);
+    SIGNAL(full);
 }
 
 void shm_cleanup(void) {
