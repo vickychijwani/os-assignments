@@ -1,4 +1,4 @@
-CCFLAGS = -Wall -Wextra -pedantic
+CCFLAGS = -Wall -Wextra -Werror -lm
 DEBUGFLAGS = -g3 -gdwarf-2
 
 .PHONY: tar clean check-syntax
