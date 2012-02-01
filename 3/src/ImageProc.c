@@ -14,14 +14,14 @@
 /* constants */
 #define IMAGE_WIDTH_MAX 1024
 #define IMAGE_HEIGHT_MAX 768
-#define COMPONENTS_PER_PIXEL 3
-#define PIXEL_COMPONENT_LEN 3
-#define CHARS_PER_PIXEL ((COMPONENTS_PER_PIXEL) * (PIXEL_COMPONENT_LEN) + 3)
-#define LINE_LEN_MAX ((IMAGE_WIDTH_MAX) * (CHARS_PER_PIXEL) + 500)
 #define MAX_IMAGE_PIXELS ((IMAGE_WIDTH_MAX) * (IMAGE_HEIGHT_MAX))
+
 #define NUM_CHILDREN 4
 #define INPUT_MAX 1000
 #define ARGS_MAX 4
+
+/* run operations for all children */
+#define DO_CHILDREN(stmt) do { int i; for (i = 0; i < NUM_CHILDREN; i++) { stmt; } } while (0)
 
 /* wait() and signal() */
 #define WAIT(s) semop(s, &pop, 1)
@@ -83,7 +83,7 @@ extern int errno;
 char *prog = "ImageProc";      /* for error handling */
 
 /* semaphores and sembufs */
-int parent;                   /* semaphore on which children wait for parent */
+int parent[NUM_CHILDREN];     /* semaphores on which children wait for parent */
 int children;                 /* semaphore on which parent waits for children */
 struct sembuf pop, vop;       /* sembufs to realize wait() and signal() calls */
 
@@ -113,6 +113,8 @@ void parse_command(char *[]);
 int tokenize_input(char *, char *[]);
 void read_input(char *);
 
+void display_preamble(void);
+
 void err(int);
 
 
@@ -124,6 +126,8 @@ int main(void) {
 
     sem_setup();
     sem_create();
+
+    display_preamble();
 
     chld_setup();
 
@@ -138,7 +142,7 @@ int main(void) {
             chld_exit();
             break;
         }
-        else if (COMMAND("brgt")) {
+        else if (COMMAND("brighten")) {
             image_brgt();
         }
     }
@@ -152,9 +156,8 @@ int main(void) {
 void image_brgt(void) {
     read_input_image();
     partition_input();
-    SIGNAL_N(parent, NUM_CHILDREN);
+    DO_CHILDREN(SIGNAL(parent[i]));
     WAIT_N(children, NUM_CHILDREN);
-    printf("%d %d\n", input->width, input->height);
     write_output_image();
 }
 
@@ -241,7 +244,7 @@ void chld_setup(void) {
     for (i = 0; i < NUM_CHILDREN; i++) {
         if (fork() == 0) {
             while (1) {
-                WAIT(parent);
+                WAIT(parent[i]);
                 switch (ctrl->cmd) {
                 case EXIT:
                     exit(0);
@@ -259,7 +262,7 @@ void chld_setup(void) {
 
 void chld_exit(void) {
     int status;
-    SIGNAL_N(parent, NUM_CHILDREN);
+    DO_CHILDREN(SIGNAL(parent[i]));
     while (wait(&status) > 0)
         ;
 }
@@ -271,12 +274,12 @@ void sem_setup(void) {
 }
 
 void sem_create(void) {
-    SEMGET(parent, 0);
+    DO_CHILDREN(SEMGET(parent[i], 0));
     SEMGET(children, 0);
 }
 
 void sem_cleanup(void) {
-    SEMREM(parent);
+    DO_CHILDREN(SEMREM(parent[i]));
     SEMREM(children);
 }
 
@@ -297,7 +300,7 @@ void parse_command(char *command[]) {
     if (COMMAND("exit")) {
         ctrl->cmd = EXIT;
     }
-    else if (COMMAND("brgt")) {
+    else if (COMMAND("brighten")) {
         ctrl->cmd = BRGT;
         ctrl->input_file = command[1];
         ctrl->output_file = command[2];
@@ -306,7 +309,7 @@ void parse_command(char *command[]) {
 }
 
 void read_input(char *input_str) {
-    char *prompt = "ImageProc> ", *c;
+    char *prompt = "ImageProc % ", *c;
     printf("%s", prompt);
     fgets(input_str, INPUT_MAX, stdin);
     c = &input_str[strlen(input_str) - 1];
@@ -319,6 +322,16 @@ int tokenize_input(char *input_str, char *command[]) {
     command[i++] = strtok(input_str, " ");
     while ((command[i++] = strtok(NULL, " ")) != NULL);
     return i - 1;
+}
+
+void display_preamble(void) {
+    char *preamble =
+        "The following commands are available:\n"
+        "\n"
+        "  exit\n"
+        "  brighten <in_file> <out_file> <percent>\n"
+        "\n";
+    printf("%s", preamble);
 }
 
 void err(int ret) {
