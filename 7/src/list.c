@@ -10,10 +10,13 @@
 
 #include "list.h"
 
-/* function prototypes */
-list_entry_t * list_entry_get_by_condition(list_t * l, int (* compar) (void *, void *), void * val);
-void list_entry_remove(list_t * l, list_entry_t * entry);
+/* internal function prototypes */
 
+list_entry_t * list_entry_get_by_condition(list_t * l, int (* compar) (void *, void *), void * val);
+void * list_entry_remove(list_t * l, list_entry_t * entry);
+
+
+/* public API functions */
 
 void list_init(list_t ** l) {
     list_t * temp;
@@ -30,7 +33,16 @@ void list_init(list_t ** l) {
 }
 
 void list_destroy(list_t * l) {
- (void) l;
+    list_entry_t * entry = l->head, * temp;
+
+    while (entry) {
+        temp = entry;
+        entry = entry->next;
+
+        free(temp);
+    }
+
+    free(l);
 }
 
 
@@ -43,36 +55,31 @@ void list_prepend(list_t * l, void * data) {
     assert(l != NULL);
     assert(data != NULL);
 
-    list_entry_t * temp = l->head;
-    l->head = ALLOC(list_entry_t, 1);
+    list_entry_t * temp = ALLOC(list_entry_t, 1);
+
+    temp->data = data;
+    temp->prev = NULL;
+    temp->next = l->head;
+
     if (l->length == 0) {
-        l->tail = l->head;
+        l->tail = l->head = temp;
         l->tail->prev = NULL;
         l->tail->next = NULL;
     }
-    l->head->data = data;
-    l->head->prev = NULL;
-    l->head->next = temp;
+
+    else {
+        l->head->prev = temp;
+        l->head = temp;
+    }
+
     l->length++;
 }
 
 void * list_pop(list_t * l) {
-    assert(l->length > 0);
-
-    list_entry_t * temp = l->head;
-
-    if (l->length > 1) {
-        l->head->next->prev = NULL;
-        l->head = l->head->next;
-    }
-    else if (l->length == 1) {
-        l->head = NULL;
-        l->tail = NULL;
-    }
-    l->length--;
-
-    return temp->data;
+    return list_entry_remove(l, l->head);
 }
+
+
 
 void * list_get_by_condition(list_t * l, int (* compar) (void *, void *), void * val) {
     list_entry_t * entry = list_entry_get_by_condition(l, compar, val);
@@ -132,6 +139,7 @@ void list_iter_stop(list_t * l) {
 
 
 /* internal functions */
+
 list_entry_t * list_entry_get_by_condition(list_t * l, int (* compar) (void *, void *), void * val) {
     list_entry_t * entry;
 
@@ -144,17 +152,17 @@ list_entry_t * list_entry_get_by_condition(list_t * l, int (* compar) (void *, v
     return NULL;
 }
 
-void list_entry_remove(list_t * l, list_entry_t * entry) {
-    if (l->length == 0 || ! entry) {
-        return;
-    }
+void * list_entry_remove(list_t * l, list_entry_t * entry) {
+    assert(l->length > 0 && entry);
 
-    else if (l->length == 1) {
+    void * data = entry->data;
+
+    if (l->length == 1) {
         l->head = NULL;
         l->tail = NULL;
     }
 
-    else {
+    else if (l->length > 1) {
         if (entry == l->head) {
             entry->next->prev = NULL;
             l->head = entry->next;
@@ -163,9 +171,15 @@ void list_entry_remove(list_t * l, list_entry_t * entry) {
             entry->prev->next = NULL;
             l->tail = entry->prev;
         }
+        else {
+            entry->prev->next = entry->next;
+            entry->next->prev = entry->prev;
+        }
     }
 
     free(entry);
 
     l->length--;
+
+    return data;
 }
