@@ -5,7 +5,7 @@
 #include "mem_mgmt.h"
 
 /* uncomment to enable asserts, comment to disable */
-#define MEM_DEBUG
+/* #define MEM_DEBUG */
 
 /* if MEM_DEBUG is defined, asserts are *enabled* */
 #ifndef MEM_DEBUG
@@ -349,9 +349,8 @@ unsigned int mem_stat_used(void) {
         used_space += block->size;
 
         printf(block_display_format, (unsigned int) (block->addr - base), block->size);
+        printf("\n  ");
     }
-
-    printf("\n");
 
     list_iter_stop(used);
 
