@@ -4,14 +4,18 @@
 #ifndef _STRUCTS_H_
 #define _STRUCTS_H_
 
+#include "config.h"
+#include <stdbool.h>
+#include <time.h>
+
 typedef enum {
-    FILE_T,
-    DIR_T
+    FILE_T = 0,
+    DIR_T = 1
 } file_type_t;
 
 typedef enum {
-    RO,
-    RW
+    RO = 0,
+    RW = 1
 } file_mode_t;
 
 typedef unsigned short blk_addr_t;  /* required range: [0, BLK_COUNT] */
@@ -24,14 +28,16 @@ typedef struct {
     file_type_t    type;
     file_mode_t    mode;
     time_t         creation_time;
-    file_size_t    size;
+    file_size_t    size;            /* stores no. of files when type == DIR_T */
 } file_attr_t;
 
 /* inode structure */
 typedef struct {
+    inumber_t      inumber;
     file_attr_t    attr;
     blk_addr_t     blocks_direct[BLKS_DIRECT];
     blk_addr_t     blocks_indirect[BLKS_INDIRECT];
+    bool           used;
 } inode_t;
 
 /* super block structure */
@@ -45,5 +51,20 @@ typedef struct {
     blk_addr_t     inode_list;
     blk_addr_t     first_free_block;
 } super_block_t;
+
+/* File Table Entry structure  */
+typedef struct {
+    inode_t inode;
+    unsigned char refCount;
+    offset_t file_offset;
+    blk_addr_t addr;
+    void * data;
+} table_entry_t;
+
+/* File entry structure in a directory */
+typedef struct {
+    char name[FILE_NAME_MAX + 1];
+    inumber_t inumber;
+} file_entry_t;
 
 #endif /* _STRUCTS_H_ */
